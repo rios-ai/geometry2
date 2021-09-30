@@ -160,7 +160,7 @@ CompactFrameID BufferCore::validateFrameId(const char* function_name_arg, const 
     ss << "\"" << frame_id << "\" passed to "<< function_name_arg <<" does not exist. ";
     throw tf2::LookupException(ss.str().c_str());
   }
-  
+
   return id;
 }
 
@@ -194,13 +194,13 @@ void BufferCore::clear()
         (*cache_it)->clearList();
     }
   }
-  
+
 }
 
 bool BufferCore::setTransform(const geometry_msgs::TransformStamped& transform_in, const std::string& authority, bool is_static)
 {
 
-  /////BACKEARDS COMPATABILITY 
+  /////BACKEARDS COMPATABILITY
   /* tf::StampedTransform tf_transform;
   tf::transformStampedMsgToTF(transform_in, tf_transform);
   if  (!old_tf_.setTransform(tf_transform, authority))
@@ -249,7 +249,7 @@ bool BufferCore::setTransform(const geometry_msgs::TransformStamped& transform_i
                         + stripped.transform.rotation.y * stripped.transform.rotation.y
                         + stripped.transform.rotation.z * stripped.transform.rotation.z) - 1.0f) < QUATERNION_NORMALIZATION_TOLERANCE;
 
-  if (!valid) 
+  if (!valid)
   {
     CONSOLE_BRIDGE_logError("TF_DENORMALIZED_QUATERNION: Ignoring transform for child_frame_id \"%s\" from authority \"%s\" because of an invalid quaternion in the transform (%f %f %f %f)",
              stripped.child_frame_id.c_str(), authority.c_str(),
@@ -259,7 +259,7 @@ bool BufferCore::setTransform(const geometry_msgs::TransformStamped& transform_i
 
   if (error_exists)
     return false;
-  
+
   {
     boost::mutex::scoped_lock lock(frame_mutex_);
     CompactFrameID frame_number = lookupOrInsertFrameNumber(stripped.child_frame_id);
@@ -342,6 +342,7 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
   uint32_t depth = 0;
 
   std::string extrapolation_error_string;
+  CompactFrameID error_frame, child_error_frame;
   bool extrapolation_might_have_occurred = false;
 
   while (frame != 0)
@@ -357,7 +358,7 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
       break;
     }
 
-    CompactFrameID parent = f.gather(cache, time, error_string ? &extrapolation_error_string : NULL);
+    CompactFrameID parent = f.gather(cache, time, error_string ? &extrapolation_error_string : NULL, error_frame, child_error_frame);
     if (parent == 0)
     {
       // Just break out here... there may still be a path from source -> target
@@ -408,14 +409,19 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
       break;
     }
 
-    CompactFrameID parent = f.gather(cache, time, error_string);
+    CompactFrameID parent = f.gather(cache, time, error_string, error_frame, child_error_frame);
     if (parent == 0)
     {
       if (error_string)
       {
         // optimize performance by not using stringstream
         char str[1000];
-        snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s]", error_string->c_str(), lookupFrameString(source_id).c_str(), lookupFrameString(target_id).c_str());
+        snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s] | Offending transform: %s -> %s",
+                                   error_string->c_str(),
+                                   lookupFrameString(source_id).c_str(),
+                                   lookupFrameString(target_id).c_str(),
+                                   lookupFrameString(error_frame).c_str(),
+                                   lookupFrameString(child_error_frame).c_str());
         *error_string = str;
       }
 
@@ -462,12 +468,17 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
       {
         // optimize performance by not using stringstream
         char str[1000];
-        snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s]", extrapolation_error_string.c_str(), lookupFrameString(source_id).c_str(), lookupFrameString(target_id).c_str());
+        snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s] | Offending transform: %s -> %s",
+                                    extrapolation_error_string.c_str(),
+                                    lookupFrameString(source_id).c_str(),
+                                    lookupFrameString(target_id).c_str(),
+                                    lookupFrameString(error_frame).c_str(),
+                                    lookupFrameString(child_error_frame).c_str());
         *error_string = str;
       }
 
       return tf2_msgs::TF2Error::EXTRAPOLATION_ERROR;
-      
+
     }
 
     createConnectivityErrorString(source_id, target_id, error_string);
@@ -505,7 +516,7 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
       }
     }
   }
-  
+
   return tf2_msgs::TF2Error::NO_ERROR;
 }
 
@@ -523,10 +534,12 @@ struct TransformAccum
   {
   }
 
-  CompactFrameID gather(TimeCacheInterfacePtr cache, ros::Time time, std::string* error_string)
+  CompactFrameID gather(TimeCacheInterfacePtr cache, ros::Time time, std::string* error_string, CompactFrameID& error_frame, CompactFrameID& child_error_frame)
   {
     if (!cache->getData(time, st, error_string))
     {
+      error_frame = st.frame_id_;
+      child_error_frame = st.child_frame_id_;
       return 0;
     }
 
@@ -645,8 +658,8 @@ geometry_msgs::TransformStamped BufferCore::lookupTransform(const std::string& t
   return output_transform;
 }
 
-                                                       
-geometry_msgs::TransformStamped BufferCore::lookupTransform(const std::string& target_frame, 
+
+geometry_msgs::TransformStamped BufferCore::lookupTransform(const std::string& target_frame,
                                                         const ros::Time& target_time,
                                                         const std::string& source_frame,
                                                         const ros::Time& source_time,
@@ -659,7 +672,7 @@ geometry_msgs::TransformStamped BufferCore::lookupTransform(const std::string& t
   geometry_msgs::TransformStamped output;
   geometry_msgs::TransformStamped temp1 =  lookupTransform(fixed_frame, source_frame, source_time);
   geometry_msgs::TransformStamped temp2 =  lookupTransform(target_frame, fixed_frame, target_time);
-  
+
   tf2::Transform tf1, tf2;
   transformMsgToTF2(temp1.transform, tf1);
   transformMsgToTF2(temp2.transform, tf2);
@@ -673,15 +686,15 @@ geometry_msgs::TransformStamped BufferCore::lookupTransform(const std::string& t
 
 
 /*
-geometry_msgs::Twist BufferCore::lookupTwist(const std::string& tracking_frame, 
-                                          const std::string& observation_frame, 
-                                          const ros::Time& time, 
+geometry_msgs::Twist BufferCore::lookupTwist(const std::string& tracking_frame,
+                                          const std::string& observation_frame,
+                                          const ros::Time& time,
                                           const ros::Duration& averaging_interval) const
 {
   try
   {
   geometry_msgs::Twist t;
-  old_tf_.lookupTwist(tracking_frame, observation_frame, 
+  old_tf_.lookupTwist(tracking_frame, observation_frame,
                       time, averaging_interval, t);
   return t;
   }
@@ -703,12 +716,12 @@ geometry_msgs::Twist BufferCore::lookupTwist(const std::string& tracking_frame,
   }
 }
 
-geometry_msgs::Twist BufferCore::lookupTwist(const std::string& tracking_frame, 
-                                          const std::string& observation_frame, 
+geometry_msgs::Twist BufferCore::lookupTwist(const std::string& tracking_frame,
+                                          const std::string& observation_frame,
                                           const std::string& reference_frame,
-                                          const tf2::Point & reference_point, 
-                                          const std::string& reference_point_frame, 
-                                          const ros::Time& time, 
+                                          const tf2::Point & reference_point,
+                                          const std::string& reference_point_frame,
+                                          const ros::Time& time,
                                           const ros::Duration& averaging_interval) const
 {
   try{
@@ -738,9 +751,9 @@ geometry_msgs::Twist BufferCore::lookupTwist(const std::string& tracking_frame,
 
 struct CanTransformAccum
 {
-  CompactFrameID gather(TimeCacheInterfacePtr cache, ros::Time time, std::string* error_string)
+  CompactFrameID gather(TimeCacheInterfacePtr cache, ros::Time time, std::string* error_string, CompactFrameID& error_frame, CompactFrameID& child_error_frame)
   {
-    return cache->getParent(time, error_string);
+    return cache->getParent(time, error_string, error_frame, child_error_frame);
   }
 
   void accum(bool source)
@@ -1374,12 +1387,13 @@ bool BufferCore::_getParent(const std::string& frame_id, ros::Time time, std::st
 
   boost::mutex::scoped_lock lock(frame_mutex_);
   CompactFrameID frame_number = lookupFrameNumber(frame_id);
+  CompactFrameID error_frame, child_error_frame;
   TimeCacheInterfacePtr frame = getFrame(frame_number);
 
   if (! frame)
     return false;
-      
-  CompactFrameID parent_id = frame->getParent(time, NULL);
+
+  CompactFrameID parent_id = frame->getParent(time, NULL, error_frame, child_error_frame);
   if (parent_id == 0)
     return false;
 

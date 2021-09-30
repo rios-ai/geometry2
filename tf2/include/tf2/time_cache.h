@@ -64,7 +64,7 @@ public:
   virtual void clearList()=0;
 
   /** \brief Retrieve the parent at a specific time */
-  virtual CompactFrameID getParent(ros::Time time, std::string* error_str) = 0;
+  virtual CompactFrameID getParent(ros::Time time, std::string* error_str, CompactFrameID& error_frame, CompactFrameID& error_frame_child) = 0;
 
   /**
    * \brief Get the latest time stored in this cache, and the parent associated with it.  Returns parent = 0 if no data.
@@ -104,14 +104,14 @@ class TimeCache : public TimeCacheInterface
   virtual bool getData(ros::Time time, TransformStorage & data_out, std::string* error_str = 0);
   virtual bool insertData(const TransformStorage& new_data, std::string* error_str = 0);
   virtual void clearList();
-  virtual CompactFrameID getParent(ros::Time time, std::string* error_str);
+  virtual CompactFrameID getParent(ros::Time time, std::string* error_str, CompactFrameID& error_frame, CompactFrameID& error_frame_child);
   virtual P_TimeAndFrameID getLatestTimeAndParent();
 
   /// Debugging information methods
   virtual unsigned int getListLength();
   virtual ros::Time getLatestTimestamp();
   virtual ros::Time getOldestTimestamp();
-  
+
 
 private:
   typedef std::deque<TransformStorage> L_TransformStorage;
@@ -141,7 +141,7 @@ class StaticCache : public TimeCacheInterface
   virtual bool getData(ros::Time time, TransformStorage & data_out, std::string* error_str = 0); //returns false if data unavailable (should be thrown as lookup exception
   virtual bool insertData(const TransformStorage& new_data, std::string* error_str = 0);
   virtual void clearList();
-  virtual CompactFrameID getParent(ros::Time time, std::string* error_str);
+  virtual CompactFrameID getParent(ros::Time time, std::string* error_str, CompactFrameID& error_frame, CompactFrameID& error_frame_child);
   virtual P_TimeAndFrameID getLatestTimeAndParent();
 
 
@@ -149,7 +149,7 @@ class StaticCache : public TimeCacheInterface
   virtual unsigned int getListLength();
   virtual ros::Time getLatestTimestamp();
   virtual ros::Time getOldestTimestamp();
-  
+
 
 private:
   TransformStorage  storage_;

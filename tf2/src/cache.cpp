@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2008, Willow Garage, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -13,7 +13,7 @@
  *     * Neither the name of the Willow Garage, Inc. nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -60,7 +60,7 @@ TimeCache::TimeCache(ros::Duration max_storage_time)
 : max_storage_time_(max_storage_time)
 {}
 
-namespace cache { // Avoid ODR collisions https://github.com/ros/geometry2/issues/175 
+namespace cache { // Avoid ODR collisions https://github.com/ros/geometry2/issues/175
 // hoisting these into separate functions causes an ~8% speedup.  Removing calling them altogether adds another ~10%
 void createExtrapolationException1(ros::Time t0, ros::Time t1, std::string* error_str)
 {
@@ -155,11 +155,13 @@ uint8_t TimeCache::findClosest(TransformStorage*& one, TransformStorage*& two, r
   // Catch cases that would require extrapolation
   else if (target_time > latest_time)
   {
+    one = &storage_.front();
     cache::createExtrapolationException2(target_time, latest_time, error_str);
     return 0;
   }
   else if (target_time < earliest_time)
   {
+    one = &storage_.back();
     cache::createExtrapolationException3(target_time, earliest_time, error_str);
     return 0;
   }
@@ -213,6 +215,7 @@ bool TimeCache::getData(ros::Time time, TransformStorage & data_out, std::string
   int num_nodes = findClosest(p_temp_1, p_temp_2, time, error_str);
   if (num_nodes == 0)
   {
+    data_out = *p_temp_1;
     return false;
   }
   else if (num_nodes == 1)
@@ -238,7 +241,7 @@ bool TimeCache::getData(ros::Time time, TransformStorage & data_out, std::string
   return true;
 }
 
-CompactFrameID TimeCache::getParent(ros::Time time, std::string* error_str)
+CompactFrameID TimeCache::getParent(ros::Time time, std::string* error_str, CompactFrameID& error_frame, CompactFrameID& error_frame_child)
 {
   TransformStorage* p_temp_1;
   TransformStorage* p_temp_2;
@@ -246,6 +249,8 @@ CompactFrameID TimeCache::getParent(ros::Time time, std::string* error_str)
   int num_nodes = findClosest(p_temp_1, p_temp_2, time, error_str);
   if (num_nodes == 0)
   {
+    error_frame = p_temp_1->frame_id_;
+    error_frame_child = p_temp_1->child_frame_id_;
     return 0;
   }
 
@@ -313,14 +318,14 @@ P_TimeAndFrameID TimeCache::getLatestTimeAndParent()
   return std::make_pair(ts.stamp_, ts.frame_id_);
 }
 
-ros::Time TimeCache::getLatestTimestamp() 
-{   
+ros::Time TimeCache::getLatestTimestamp()
+{
   if (storage_.empty()) return ros::Time(); //empty list case
   return storage_.front().stamp_;
 }
 
-ros::Time TimeCache::getOldestTimestamp() 
-{   
+ros::Time TimeCache::getOldestTimestamp()
+{
   if (storage_.empty()) return ros::Time(); //empty list case
   return storage_.back().stamp_;
 }
@@ -328,11 +333,11 @@ ros::Time TimeCache::getOldestTimestamp()
 void TimeCache::pruneList()
 {
   ros::Time latest_time = storage_.begin()->stamp_;
-  
+
   while(!storage_.empty() && storage_.back().stamp_ + max_storage_time_ < latest_time)
   {
     storage_.pop_back();
   }
-  
+
 } // namespace tf2
 }
