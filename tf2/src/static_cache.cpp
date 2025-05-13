@@ -34,6 +34,8 @@
 
 #include "tf2/LinearMath/Transform.h"
 
+#include "tf2/buffer_core.h"
+
 
 using namespace tf2;
 
@@ -57,6 +59,15 @@ bool StaticCache::insertData(const TransformStorage& new_data, std::string* erro
 void StaticCache::clearList() { return; };
 
 unsigned int StaticCache::getListLength() {   return 1; };
+
+boost::shared_ptr<std::list<TransformStorage> > StaticCache::getList()
+{
+  boost::shared_ptr<std::list<TransformStorage> > storage_list(new std::list<TransformStorage>);
+
+  storage_list->push_back(storage_);
+
+  return storage_list;
+}
 
 CompactFrameID StaticCache::getParent(ros::Time time, std::string* error_str, CompactFrameID& error_frame, CompactFrameID& error_frame_child)
 {

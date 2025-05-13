@@ -307,6 +307,19 @@ unsigned int TimeCache::getListLength()
   return storage_.size();
 }
 
+boost::shared_ptr<std::list<TransformStorage> > TimeCache::getList()
+{
+  boost::shared_ptr<std::list<TransformStorage> > storage_list(new std::list<TransformStorage>);
+
+  // Iterate through the deque and fill in the list
+  for (L_TransformStorage::iterator storage_it = storage_.begin(); storage_it != storage_.end(); ++storage_it)
+  {
+    storage_list->push_back(*storage_it);
+  }
+
+  return storage_list;
+}
+
 P_TimeAndFrameID TimeCache::getLatestTimeAndParent()
 {
   if (storage_.empty())
