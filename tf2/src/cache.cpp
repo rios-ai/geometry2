@@ -249,8 +249,16 @@ CompactFrameID TimeCache::getParent(ros::Time time, std::string* error_str, Comp
   int num_nodes = findClosest(p_temp_1, p_temp_2, time, error_str);
   if (num_nodes == 0)
   {
-    error_frame = p_temp_1->frame_id_;
-    error_frame_child = p_temp_1->child_frame_id_;
+    if (p_temp_1 != NULL)
+    {
+      error_frame = p_temp_1->frame_id_;
+      error_frame_child = p_temp_1->child_frame_id_;
+    }
+    else
+    {
+      error_frame = 0;
+      error_frame_child = 0;
+    }
     return 0;
   }
 
