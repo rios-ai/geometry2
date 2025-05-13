@@ -36,6 +36,7 @@
 
 #include <boost/signals2.hpp>
 
+#include <list>
 #include <string>
 
 #include "ros/duration.h"

@@ -415,6 +415,7 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
     {
       if (error_string)
       {
+
         // optimize performance by not using stringstream
         char str[1000];
         snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s] | Offending transform: %s -> %s",
@@ -423,7 +424,23 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
                                    lookupFrameString(target_id).c_str(),
                                    lookupFrameString(error_frame).c_str(),
                                    lookupFrameString(child_error_frame).c_str());
-        *error_string = str;
+        *error_string = std::string(str);
+
+        // find all updates in the cache for the offending frame
+        TimeCacheInterfacePtr cache = getFrame(child_error_frame);
+        if (cache)
+        {
+          std::stringstream ss;
+          ss << std::endl << "The following timestamps are available for [" << lookupFrameString(error_frame) << " -> " << lookupFrameString(child_error_frame) << "]:" << std::endl;
+
+          boost::shared_ptr<std::list<tf2::TransformStorage> > storage_list = cache->getList();
+          BOOST_FOREACH(const tf2::TransformStorage& storage, *storage_list)
+          {
+            ss << std::to_string(storage.stamp_.toSec()) << std::endl;
+          }
+
+          *error_string += ss.str();
+        }
       }
 
       return tf2_msgs::TF2Error::EXTRAPOLATION_ERROR;
@@ -469,13 +486,41 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
       {
         // optimize performance by not using stringstream
         char str[1000];
-        snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s] | Offending transform: %s -> %s",
+        try
+        {
+          snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s] | Offending transform: %s -> %s",
                                     extrapolation_error_string.c_str(),
                                     lookupFrameString(source_id).c_str(),
                                     lookupFrameString(target_id).c_str(),
                                     lookupFrameString(error_frame).c_str(),
                                     lookupFrameString(child_error_frame).c_str());
-        *error_string = str;
+
+          *error_string = std::string(str);
+
+          TimeCacheInterfacePtr cache = getFrame(child_error_frame);
+          if (cache)
+          {
+            std::stringstream ss;
+            ss << std::endl << "The following timestamps are available for [" << lookupFrameString(error_frame) << " -> " << lookupFrameString(child_error_frame) << "]:" << std::endl;
+
+            boost::shared_ptr<std::list<tf2::TransformStorage> > storage_list = cache->getList();
+            BOOST_FOREACH(const tf2::TransformStorage& storage, *storage_list)
+            {
+              ss << std::to_string(storage.stamp_.toSec()) << std::endl;
+            }
+
+            *error_string += ss.str();
+          }
+        }
+        catch(const std::exception& e)
+        {
+          snprintf(str, sizeof(str), "%s, when looking up transform from frame [%s] to frame [%s]",
+                                    extrapolation_error_string.c_str(),
+                                    lookupFrameString(source_id).c_str(),
+                                    lookupFrameString(target_id).c_str());
+
+          *error_string = std::string(str);
+        }
       }
 
       return tf2_msgs::TF2Error::EXTRAPOLATION_ERROR;

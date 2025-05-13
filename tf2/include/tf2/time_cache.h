@@ -33,6 +33,7 @@
 #define TF2_TIME_CACHE_H
 
 #include "transform_storage.h"
+#include "tf2/buffer_core.h"
 
 #include <deque>
 
@@ -76,6 +77,9 @@ public:
   /** @brief Get the length of the stored list */
   virtual unsigned int getListLength()=0;
 
+  /** @brief Get the list of stored values */
+  virtual boost::shared_ptr<std::list<TransformStorage> > getList()=0;
+
   /** @brief Get the latest timestamp cached */
   virtual ros::Time getLatestTimestamp()=0;
 
@@ -109,6 +113,7 @@ class TimeCache : public TimeCacheInterface
 
   /// Debugging information methods
   virtual unsigned int getListLength();
+  virtual boost::shared_ptr<std::list<TransformStorage> > getList();
   virtual ros::Time getLatestTimestamp();
   virtual ros::Time getOldestTimestamp();
 
@@ -147,6 +152,7 @@ class StaticCache : public TimeCacheInterface
 
   /// Debugging information methods
   virtual unsigned int getListLength();
+  virtual boost::shared_ptr<std::list<TransformStorage> > getList();
   virtual ros::Time getLatestTimestamp();
   virtual ros::Time getOldestTimestamp();
 
