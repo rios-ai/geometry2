@@ -433,7 +433,7 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
           ss << std::endl << "The following timestamps are available for [" << lookupFrameString(error_frame) << " -> " << lookupFrameString(child_error_frame) << "]:" << std::endl;
 
           boost::shared_ptr<std::list<tf2::TransformStorage> > storage_list = cache->getList();
-          BOOST_FOREACH(const tf2::TransformStorage& storage, *storage_list)
+          for (const tf2::TransformStorage& storage : *storage_list)
           {
             ss << std::to_string(storage.stamp_.toSec()) << std::endl;
           }
@@ -503,7 +503,7 @@ int BufferCore::walkToTopParent(F& f, ros::Time time, CompactFrameID target_id,
             ss << std::endl << "The following timestamps are available for [" << lookupFrameString(error_frame) << " -> " << lookupFrameString(child_error_frame) << "]:" << std::endl;
 
             boost::shared_ptr<std::list<tf2::TransformStorage> > storage_list = cache->getList();
-            BOOST_FOREACH(const tf2::TransformStorage& storage, *storage_list)
+            for (const tf2::TransformStorage& storage : *storage_list)
             {
               ss << std::to_string(storage.stamp_.toSec()) << std::endl;
             }
