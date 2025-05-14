@@ -239,7 +239,7 @@ bool TimeCache::getData(ros::Time time, TransformStorage & data_out, std::string
   }
 
   return true;
-}e
+}
 
 CompactFrameID TimeCache::getParent(ros::Time time, std::string* error_str, CompactFrameID& error_frame, CompactFrameID& error_frame_child)
 {
